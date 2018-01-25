@@ -21,15 +21,17 @@ FPS = 25
 
 WINDOWWIDTH = 400
 WINDOWHEIGHT = 600
-BOXSIZE = 50
-BOARDWIDTH = 5
-BOARDHEIGHT = 5
-XMARGIN = (WINDOWWIDTH - (BOARDWIDTH * BOXSIZE))/2
-TOPMARGIN = 25
+BOXSIZE = 30
+BOARDWIDTH = 10
+BOARDHEIGHT = 16
+XMARGIN = 50 # (WINDOWWIDTH - (BOARDWIDTH * BOXSIZE))/2
+TOPMARGIN = 50
 
 class GameScene(object):
     def __init__(self):
-        pass
+        super(GameScene, self).__init__()
+        self.game_over = False
+        self.board = Board()
 
     def render(self, screen):
         raise NotImplementedError
@@ -66,7 +68,7 @@ class TitleScene(object):
         super(TitleScene, self).__init__()
         #display title screen
         TITLERECT.topleft = 0,0
-        DISPLAYSURF.blit(TITLE, TITLERECT)
+        DISPLAYSURF.blit(TITLEIMAGE, TITLERECT)
         pygame.display.flip()
 
     def render(self, DISPLAYSURF):
@@ -79,6 +81,24 @@ class TitleScene(object):
         for e in events:
             if e.type == KEYDOWN:
                 self.manager.go_to(GameScene())
+
+class Board(object):
+    """represents the Undermine board
+
+    The Game board is as follows:
+
+    x_0_y_0 | x_1_y_0 | x_2_y_0 | ...... | x_9_y_0
+    x_0_y_1 | x_1_y_1 | x_2_y_1 | ...... | x_9_y_1
+    ....... | ....... | ....... | ...... | .......
+    x_0_y_14| x_1_y_14| x_2_y_14| ...... | x_9_y_14
+    x_0_y_15| x_1_y_15| x_2_y_15| ...... | x_9_y_15
+
+    may change depending on the BOARDWIDTH and BOARDHEIGHT
+    """
+    def __init__(self, possible_random_spaces):
+
+        self.board = []
+
 def checkForQuit():
     for event in pygame.event.get(QUIT): # get all the QUIT events
         terminate() # terminate if any QUIT events are present
@@ -110,13 +130,20 @@ def terminate():
     sys.exit()
 
 def main():
-    global DISPLAYSURF, FPSCLOCK, TITLE, TITLERECT
+    global DISPLAYSURF, FPSCLOCK, BGIMAGE, BGRECT, BOULDERIMAGE, BOULDERRECT,\
+    EARTHIMAGE, EARTHRECT, MINER1IMAGE, MINER1RECT, MINER2IMAGE, MINER2RECTITLE,\
+    TITLEIMAGE, TITLERECT
 
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
 
-    TITLE, TITLERECT = load_png('title.png')
+    BGIMAGE, BGRECT = load_png('background.png')
+    BOULDERIMAGE, BOULDERRECT = load_png('boulder.png')
+    EARTHIMAGE, EARTHRECT = load_png('earth.png')
+    MINER1IMAGE, MINER1RECT =load_png('miner_1.png')
+    MINER2IMAGE, MINER2RECT =load_png('miner_2.png')
+    TITLEIMAGE, TITLERECT = load_png('title.png')
 
     manager = SceneMananger()
 
