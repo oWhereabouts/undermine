@@ -14,7 +14,7 @@ import math
 import os
 import copy
 from pygame.locals import *
-from random import randint, sample, shuffle
+from random import choice, randint, sample, shuffle
 import operator
 
 FPS = 25
@@ -32,15 +32,84 @@ class GameScene(object):
         super(GameScene, self).__init__()
         self.game_over = False
         self.board = Board()
+        self.miner_1 = self.board.starting_player_coords[0:4]
+        self.miner_2 = self.board.starting_player_coords[4:]
+
+        self.miner_1[1] = "dead"
+        self.miner_2[2] = "dead"
+        self.miner_2[3] = "dead"
+
+        self.board_surface = pygame.Surface((WINDOWWIDTH, WINDOWHEIGHT), pygame.SRCALPHA)
+        self.board_surface.blit(BGIMAGE, (0, 0))
+        self.board_rect = self.board_surface.get_rect()
+        DISPLAYSURF.blit(BGIMAGE, BGRECT)
+        for x in range(BOARDWIDTH):
+            for y in range(BOARDHEIGHT):
+                self.draw_box(x, y, self.board.board[x][y])
+        # draw lava
+        for x in range(BOARDWIDTH):
+            pixelx, pixely = self.convert_to_pixel_coords(x, 15)
+            LAVARECT.topleft = pixelx, pixely
+            self.board_surface.blit(LAVAIMAGE, LAVARECT)
+
+        self.draw_lives()
+        DISPLAYSURF.blit(self.board_surface, self.board_rect)
+        pygame.display.flip()
 
     def render(self, screen):
-        raise NotImplementedError
+        # raise NotImplementedError
+        pass
 
     def update(self):
-        raise NotImplementedError
+        # raise NotImplementedError
+        pass
 
     def handle_events(self, events):
-        raise NotImplementedError
+        # raise NotImplementedError
+        pass
+
+    def convert_to_pixel_coords(self, boxx, boxy):
+        # Convert the given xy coordinates of the board to xy
+        # coordinates of the location on the screen.
+        return (XMARGIN + (boxx * BOXSIZE)), (TOPMARGIN + (boxy * BOXSIZE))
+
+    def draw_box(self, boxx, boxy, value):
+        # draw a single box
+        # at xy coordinates on the board.
+
+        pixelx, pixely = self.convert_to_pixel_coords(boxx, boxy)
+
+        if value == "earth":
+            boxImage = EARTHIMAGE
+            boxRect = EARTHRECT
+        elif value == "blank":
+            pass
+        elif value == "boulder":
+            boxImage = BOULDERIMAGE
+            boxRect = BOULDERRECT
+        else:
+            boxImage, boxRect = GETMINERIMAGEVARIABLE[value[:7]]
+        boxRect.topleft = pixelx, pixely
+        self.board_surface.blit(boxImage, boxRect)
+
+    def draw_lives(self):
+        # draw lives up sides of baord
+        for n in range(4):
+            miner1 = self.miner_1[n]
+            if miner1 != "dead":
+                MINER1RECT.topleft = 10, 70 + (n * 40)
+                self.board_surface.blit(MINER1IMAGE, MINER1RECT)
+            else:
+                GHOSTRECT.topleft = 10, 70 + (n * 40)
+                self.board_surface.blit(GHOSTIMAGE, GHOSTRECT)
+            miner2 = self.miner_2[n]
+            if miner2 != "dead":
+                MINER2RECT.topleft = 360, 70 + (n * 40)
+                self.board_surface.blit(MINER2IMAGE, MINER2RECT)
+            else:
+                GHOSTRECT.topleft = 360, 70 + (n * 40)
+                self.board_surface.blit(GHOSTIMAGE, GHOSTRECT)
+
 
 class Scene(object):
     def __init__(self):
@@ -95,9 +164,38 @@ class Board(object):
 
     may change depending on the BOARDWIDTH and BOARDHEIGHT
     """
-    def __init__(self, possible_random_spaces):
+    def __init__(self):
 
         self.board = []
+        self.objects = []
+
+        #create board
+        for x in range(BOARDWIDTH):
+            self.board.append(["earth"] * BOARDHEIGHT)
+            for y in range(BOARDHEIGHT):
+                if y < 15:
+                    self.objects.append((x,y))
+        shuffle(self.objects)
+
+        self.starting_player_coords = []
+        self.fill_board(self.objects)
+
+    def fill_board(self, objects):
+        # random_length_list = [7,8,9,10]
+        # random_length = choice(random_length_list)
+        for n in range(8):
+            (x,y) = self.objects.pop()
+            self.starting_player_coords.append((x,y))
+            if n < 4:
+                miner = "miner_1_{}".format(n + 1)
+            else:
+                miner = "miner_2_{}".format(n + 1)
+            self.board[x][y] = miner
+        for n in range(32):
+            (x,y)= self.objects.pop()
+            self.board[x][y] = "boulder"
+        return
+
 
 def checkForQuit():
     for event in pygame.event.get(QUIT): # get all the QUIT events
@@ -131,7 +229,8 @@ def terminate():
 
 def main():
     global DISPLAYSURF, FPSCLOCK, BGIMAGE, BGRECT, BOULDERIMAGE, BOULDERRECT,\
-    EARTHIMAGE, EARTHRECT, MINER1IMAGE, MINER1RECT, MINER2IMAGE, MINER2RECTITLE,\
+    EARTHIMAGE, EARTHRECT, GETMINERIMAGEVARIABLE, GHOSTIMAGE, GHOSTRECT,\
+    LAVAIMAGE, LAVARECT, MINER1IMAGE, MINER1RECT, MINER2IMAGE, MINER2RECT,\
     TITLEIMAGE, TITLERECT
 
     pygame.init()
@@ -141,9 +240,16 @@ def main():
     BGIMAGE, BGRECT = load_png('background.png')
     BOULDERIMAGE, BOULDERRECT = load_png('boulder.png')
     EARTHIMAGE, EARTHRECT = load_png('earth.png')
+    GHOSTIMAGE, GHOSTRECT = load_png('ghost.png')
+    LAVAIMAGE, LAVARECT = load_png('lava.png')
     MINER1IMAGE, MINER1RECT =load_png('miner_1.png')
     MINER2IMAGE, MINER2RECT =load_png('miner_2.png')
     TITLEIMAGE, TITLERECT = load_png('title.png')
+
+    GETMINERIMAGEVARIABLE = {
+                            'miner_1':(MINER1IMAGE, MINER1RECT),
+                            'miner_2':(MINER2IMAGE, MINER2RECT)
+                            }
 
     manager = SceneMananger()
 
