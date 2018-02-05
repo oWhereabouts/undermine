@@ -40,7 +40,13 @@ class GameScene(object):
         self.miner_2.miners[2]['alive'] = False
         self.miner_1.miners[3]['alive'] = False
 
-        self.current_player = self.miner_2
+        self.current_player = self.miner_1
+
+        self.selected = False
+        self.surrounding_coordinates = []
+        self.get_surrounding_coords()
+        self.actions = 3
+        # self.actions = 5
 
         self.board_surface = pygame.Surface((WINDOWWIDTH, WINDOWHEIGHT), pygame.SRCALPHA)
         self.board_surface.blit(BGIMAGE, (0, 0))
@@ -56,6 +62,7 @@ class GameScene(object):
             self.board_surface.blit(LAVAIMAGE, LAVARECT)
         self.draw_current_player()
         self.draw_lives()
+        self.draw_actions()
         self.draw_top_boulders()
         DISPLAYSURF.blit(self.board_surface, self.board_rect)
         pygame.display.flip()
@@ -76,6 +83,23 @@ class GameScene(object):
         # Convert the given xy coordinates of the board to xy
         # coordinates of the location on the screen.
         return (XMARGIN + (boxx * BOXSIZE)), (TOPMARGIN + (boxy * BOXSIZE))
+
+    def draw_actions(self):
+        if self.current_player == self.miner_1:
+            x = 10
+        else:
+            x = 360
+        y = 280
+
+        used_action = 5 - self.actions
+        for n in range(used_action):
+            PICKAXEURECT.topleft = x, y
+            self.board_surface.blit(PICKAXEUIMAGE, PICKAXEURECT)
+            y += 40
+        for n in range(self.actions):
+            PICKAXERECT.topleft = x, y
+            self.board_surface.blit(PICKAXEIMAGE, PICKAXERECT)
+            y += 40
 
     def draw_box(self, boxx, boxy, value):
         # draw a single box
@@ -141,6 +165,15 @@ class GameScene(object):
             TOPBOULDERRECT.topleft = pixelx, pixely
             self.board_surface.blit(TOPBOULDERIMAGE, TOPBOULDERRECT)
 
+    def get_surrounding_coords(self):
+        # return the coords surrounding the active piece
+        self.surrounding_coordinates = []
+        (current_x, current_y) = self.current_player.current_coords
+        for x in range(current_x-1, current_x+2):
+            for y in range(current_y-1, current_y+2):
+                if x in range(0,BOARDWIDTH) and y in range(0,BOARDHEIGHT):
+                    if (x, y) != (current_x, current_y):
+                        self.surrounding_coordinates.append((x,y))
 
 class Scene(object):
     def __init__(self):
@@ -254,7 +287,7 @@ class Miner(object):
     def __init__(self, miner_coords, image, rect):
 
         self.miners = []
-        self.get_starting_attirbutes(miner_coords)
+        self.get_starting_attributes(miner_coords)
         self.current_miner = 0
         self.current_coords = False
         self.get_current_coords()
@@ -265,7 +298,7 @@ class Miner(object):
     def get_current_coords(self):
         self.current_coords = self.miners[self.current_miner]["coords"]
 
-    def get_starting_attirbutes(self, miner_coords):
+    def get_starting_attributes(self, miner_coords):
         for n in range(len(miner_coords)):
             self.miners.append({
                         "coords": miner_coords[n],
@@ -307,7 +340,8 @@ def main():
     CURRENTMINER1IMAGE, CURRENTMINER1RECT, CURRENTMINER2IMAGE, CURRENTMINER2RECT,\
     EARTHIMAGE, EARTHRECT, GETMINERIMAGEVARIABLE, GHOSTIMAGE, GHOSTRECT,\
     LAVAIMAGE, LAVARECT, MINER1IMAGE, MINER1RECT, MINER2IMAGE, MINER2RECT,\
-    TITLEIMAGE, TITLERECT, TOPBOULDERIMAGE, TOPBOULDERRECT
+    PICKAXEIMAGE, PICKAXERECT, PICKAXEUIMAGE, PICKAXEURECT, TITLEIMAGE, TITLERECT,\
+    TOPBOULDERIMAGE, TOPBOULDERRECT
 
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
@@ -322,6 +356,8 @@ def main():
     LAVAIMAGE, LAVARECT = load_png('lava.png')
     MINER1IMAGE, MINER1RECT =load_png('miner_1.png')
     MINER2IMAGE, MINER2RECT =load_png('miner_2.png')
+    PICKAXEIMAGE, PICKAXERECT =load_png('pickaxe.png')
+    PICKAXEUIMAGE, PICKAXEURECT =load_png('pickaxe_used.png')
     TITLEIMAGE, TITLERECT = load_png('title.png')
     TOPBOULDERIMAGE, TOPBOULDERRECT = load_png('top_boulder.png')
 
