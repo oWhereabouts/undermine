@@ -18,6 +18,8 @@ from random import choice, randint, sample, shuffle
 import operator
 
 FPS = 25
+LEFT = 1
+RIGHT = 3
 
 WINDOWWIDTH = 400
 WINDOWHEIGHT = 600
@@ -25,22 +27,24 @@ BOXSIZE = 30
 BOARDWIDTH = 10
 BOARDHEIGHT = 16
 XMARGIN = 50 # (WINDOWWIDTH - (BOARDWIDTH * BOXSIZE))/2
+XMAXMARGIN = 350
 TOPMARGIN = 90
+TOPMAXMARGIN = 570 # (480 + 90)
 
 class GameScene(object):
     def __init__(self):
         super(GameScene, self).__init__()
         self.game_over = False
         self.board = Board()
-        self.miner_1 = Miner(self.board.starting_player_coords[0:4],
-            CURRENTMINER1IMAGE, CURRENTMINER1RECT)
-        self.miner_2 = Miner(self.board.starting_player_coords[4:],
-            CURRENTMINER2IMAGE, CURRENTMINER2RECT)
+        self.mouseX = 1
+        self.mouseY = 1
+        self.miner_1 = Miner(self.board.starting_player_coords[0:4], 1)
+        self.miner_2 = Miner(self.board.starting_player_coords[4:], 2)
         self.miner_1.miners[1]['alive'] = False
         self.miner_2.miners[2]['alive'] = False
         self.miner_1.miners[3]['alive'] = False
 
-        self.current_player = self.miner_1
+        self.current_player = self.miner_2
 
         self.selected = False
         self.surrounding_coordinates = []
@@ -64,6 +68,9 @@ class GameScene(object):
         self.draw_lives()
         self.draw_actions()
         self.draw_top_boulders()
+        """self.board_surface.blit(BGIMAGE, (10, 90), (10, 90, BOXSIZE, BOXSIZE))
+        MINER1RECT.topleft = 10, 90
+        self.board_surface.blit(MINER1IMAGE, MINER1RECT)"""
         DISPLAYSURF.blit(self.board_surface, self.board_rect)
         pygame.display.flip()
 
@@ -76,8 +83,14 @@ class GameScene(object):
         pass
 
     def handle_events(self, events):
-        # raise NotImplementedError
-        pass
+        for event in events: # event handling loop
+            if event.type == MOUSEMOTION:
+                self.mouseX, self.mouseY = event.pos
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == LEFT:
+                if self.on_board():
+                    continue
+                elif self.selected is False:
+                    self.select_miner()
 
     def convert_to_pixel_coords(self, boxx, boxy):
         # Convert the given xy coordinates of the board to xy
@@ -124,14 +137,12 @@ class GameScene(object):
         if coords is False:
             (x, y) = self.current_player.current_coords
             pixelx, pixely = self.convert_to_pixel_coords(x, y)
-            pixelx -= 2
-            pixely -= 2
         else:
             (pixelx, pixely) = coords
-        self.current_player.rect.topleft = pixelx, pixely
+        self.current_player.current_rect.topleft = pixelx, pixely
         self.board_surface.blit(
-            self.current_player.image,
-            self.current_player.rect)
+            self.current_player.current_image,
+            self.current_player.current_rect)
 
     def draw_lives(self):
         # draw lives up sides of board
@@ -140,24 +151,34 @@ class GameScene(object):
             # miner1 = self.miner_1[n]
             miner1 = self.miner_1.miners[n]
             if miner1["alive"] is True:
-                MINER1RECT.topleft = 10, 90 + (n * 40)
+                MINER1RECT.topleft = 10, miner1["y_min"]
                 self.board_surface.blit(MINER1IMAGE, MINER1RECT)
             else:
-                GHOSTRECT.topleft = 10, 90 + (n * 40)
+                GHOSTRECT.topleft = 10, miner1["y_min"]
                 self.board_surface.blit(GHOSTIMAGE, GHOSTRECT)
             # miner2 = self.miner_2[n]
             miner2 = self.miner_2.miners[n]
             if miner2["alive"] is True:
-                MINER2RECT.topleft = 360, 90 + (n * 40)
+                MINER2RECT.topleft = 360, miner2["y_min"]
                 self.board_surface.blit(MINER2IMAGE, MINER2RECT)
             else:
-                GHOSTRECT.topleft = 360, 90 + (n * 40)
+                GHOSTRECT.topleft = 360, miner2["y_min"]
                 self.board_surface.blit(GHOSTIMAGE, GHOSTRECT)
-            if self.current_player == self.miner_1:
-                x = 8
-            else:
-                x = 358
-            self.draw_current_player((x, 88 + (self.current_player.current_miner * 40)))
+        if self.current_player == self.miner_1:
+            x = 10
+        else:
+            x = 360
+        self.draw_current_player((x, 90 + (self.current_player.current_miner * 40)))
+
+    def draw_old_selected_miner(self, old_x, old_y, old_coords, rect, image):
+        # draw blank board and a miner over last current miner
+        self.board_surface.blit(BGIMAGE, (old_x, old_y), (old_x, old_y, BOXSIZE, BOXSIZE))
+        rect.topleft = old_x, old_y
+        self.board_surface.blit(image, rect)
+
+        pixelx, pixely = self.convert_to_pixel_coords(old_coords[0], old_coords[1])
+        self.board_surface.blit(BGIMAGE, (pixelx, pixely), (pixelx, pixely, BOXSIZE, BOXSIZE))
+        self.draw_box(old_coords[0], old_coords[1], self.board.board[old_coords[0]][old_coords[1]])
 
     def draw_top_boulders(self):
         for (x,y) in self.board.top_boulders:
@@ -174,6 +195,48 @@ class GameScene(object):
                 if x in range(0,BOARDWIDTH) and y in range(0,BOARDHEIGHT):
                     if (x, y) != (current_x, current_y):
                         self.surrounding_coordinates.append((x,y))
+
+    def  on_board(self):
+        if (self.mouseX >= XMARGIN and self.mouseX < XMAXMARGIN and
+                self.mouseY >= TOPMARGIN and self.mouseY < TOPMAXMARGIN):
+            return True
+        else:
+            False
+
+    def select_miner(self):
+        miner_n = False
+        if self.current_player == self.miner_1:
+            if self.mouseX > XMARGIN:
+                return
+            miner_n = self.miner_1
+        elif self.current_player == self.miner_2:
+            if self.mouseX < XMAXMARGIN:
+                return
+            miner_n = self.miner_2
+        if miner_n is False:
+            return
+        # check which miner was clicked
+        for n in range(4):
+            miners_n = miner_n.miners[n]
+            if miner_n.current_miner == n:
+                # they selected the current miner so continue
+                continue
+            if miners_n["alive"] is True and miners_n["active"] is True:
+                if (self.mouseY >= miners_n["y_min"] and
+                        self.mouseY <= miners_n["y_max"]):
+                    old_miner = miner_n.current_miner
+                    old_y = miner_n.miners[old_miner]["y_min"]
+                    old_coords = miner_n.miners[old_miner]["coords"]
+                    # self.miner_n.update_miner(old_miner)
+                    self.draw_old_selected_miner(miner_n.x, old_y, old_coords,
+                                        miner_n.rect,
+                                        miner_n.image)
+                    miner_n.current_miner = n
+                    miner_n.get_current_coords()
+                    self.draw_current_player(( miner_n.x, 90 + (self.current_player.current_miner * 40)))
+                    self.draw_current_player()
+                    DISPLAYSURF.blit(self.board_surface, self.board_rect)
+                    pygame.display.flip()
 
 class Scene(object):
     def __init__(self):
@@ -284,26 +347,56 @@ class Miner(object):
     """lass for remember the current state of the miners
     of each player
     """
-    def __init__(self, miner_coords, image, rect):
+    def __init__(self, miner_coords, player_number):
 
         self.miners = []
+        self.player_number = player_number
         self.get_starting_attributes(miner_coords)
         self.current_miner = 0
         self.current_coords = False
         self.get_current_coords()
         self.round_complete = False
-        self.image = image
-        self.rect = rect
+        self.get_images()
+        self.x = 0
+        self.get_x()
 
     def get_current_coords(self):
         self.current_coords = self.miners[self.current_miner]["coords"]
 
+    def get_images(self):
+        if self.player_number == 1:
+            self.image = MINER1IMAGE
+            self.rect = MINER1RECT
+            self.current_image = CURRENTMINER1IMAGE
+            self.current_rect = CURRENTMINER1RECT
+        elif self.player_number == 2:
+            self.image = MINER2IMAGE
+            self.rect = MINER2RECT
+            self.current_image = CURRENTMINER2IMAGE
+            self.current_rect = CURRENTMINER2RECT
+
     def get_starting_attributes(self, miner_coords):
+        if self.player_number in [1, 2]:
+            y_min = 90
+            y_max = 120
+        elif self.player_number == [3, 4]:
+            y_min = 280
+            y_max = 310
         for n in range(len(miner_coords)):
             self.miners.append({
                         "coords": miner_coords[n],
                         "active": True,
-                        "alive": True})
+                        "alive": True,
+                        "y_min": y_min,
+                        "y_max": y_max})
+            y_min += 40
+            y_max += 40
+
+    def get_x(self):
+        if self.player_number == 1:
+            self.x = 10
+        elif self.player_number == 2:
+            self.x = 360
 
 def checkForQuit():
     for event in pygame.event.get(QUIT): # get all the QUIT events
